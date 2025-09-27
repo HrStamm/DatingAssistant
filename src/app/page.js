@@ -1,103 +1,172 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { sendMessageToAPI } from './shared/utils/api-utils';
+import ChatInput from './features/dating-assistant/components/ChatInput';
+import ToneSelector from './features/dating-assistant/components/ToneSelector';
+import SubmitButton from './features/dating-assistant/components/SubmitButton';
+import ChatInterface from './features/dating-assistant/components/ChatInterface';
+import ErrorMessage from './features/dating-assistant/components/ErrorMessage';
+import HistoryList from './features/dating-assistant/components/HistoryList';
+import { useTheme } from './shared/context/ThemeContext';
+import { useLanguage } from './shared/context/LanguageContext';
+import translations from './shared/utils/translations';
+
+export default function HomePage() {
+  const [partnerMessage, setPartnerMessage] = useState('');
+  const [response, setResponse] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [tone, setTone] = useState('flirtende');
+  const [history, setHistory] = useState([]);
+  const [hasStartedChat, setHasStartedChat] = useState(false);
+  const [shouldGenerate, setShouldGenerate] = useState(false);
+  const { darkMode } = useTheme();
+  const { language } = useLanguage();
+
+  // Handle submit button click - shows chat interface
+  const handleSubmit = async () => {
+    if (!partnerMessage.trim()) {
+      setError(translations.mainPage.error.emptyMessage[language]);
+      return;
+    }
+
+    setHasStartedChat(true); // Show chat interface
+    setShouldGenerate(true); // Trigger generation
+  };
+
+  // Reset generation trigger
+  const handleGenerationComplete = () => {
+    setShouldGenerate(false);
+  };
+
+  // Handle API call for generating response
+  const handleGenerateResponse = async () => {
+    if (!partnerMessage.trim()) {
+      setError(translations.mainPage.error.emptyMessage[language]);
+      throw new Error('Empty message');
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await sendMessageToAPI(partnerMessage, tone);
+      
+      if (data.success) {
+        setResponse(data.message);
+        setHistory(prev => [...prev, {
+          message: partnerMessage,
+          response: data.message,
+          tone: tone,
+          timestamp: new Date().toISOString()
+        }]);
+        return data.message;
+      } else {
+        const errorMessage = data.error || 'Der skete en ukendt fejl';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error('Fejl:', error);
+      const errorMessage = translations.mainPage.error.serverError[language];
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyResponse = () => {
+    if (response) {
+      navigator.clipboard.writeText(response);
+      console.log('Copied to clipboard');
+    }
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    <div>
+      <div className="container mx-auto px-4 py-8 pb-16 relative">
+        <div className="max-w-2xl mx-auto">
+          {/* Input Section */}
+          <div className={`
+            rounded-xl shadow-xl p-6 border backdrop-blur-sm mb-8
+            transition-all duration-300 ease-in-out
+            ${darkMode 
+              ? 'bg-gray-800/70 border-gray-700 shadow-purple-900/10' 
+              : 'bg-white/80 border-purple-100 shadow-purple-500/10'
+            }
+          `}>
+            <ChatInput 
+              darkMode={darkMode}
+              partnerMessage={partnerMessage}
+              setPartnerMessage={setPartnerMessage}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            
+            <ToneSelector 
+              darkMode={darkMode}
+              tone={tone}
+              setTone={setTone}
+            />
+            
+            {!hasStartedChat ? (
+              <SubmitButton 
+                darkMode={darkMode}
+                loading={loading}
+                isDisabled={!partnerMessage.trim() || loading}
+                onClick={handleSubmit}
+              />
+            ) : (
+              <button
+                onClick={() => setShouldGenerate(true)}
+                disabled={!partnerMessage.trim() || loading}
+                className={`
+                  w-full py-4 px-6 rounded-xl font-medium text-base sm:text-lg
+                  shadow-lg transition-all duration-300 ease-out
+                  disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2
+                  ${darkMode ? 'focus:ring-purple-500 focus:ring-offset-gray-900' : 'focus:ring-purple-500 focus:ring-offset-white'}
+                  ${!partnerMessage.trim() || loading
+                    ? darkMode 
+                      ? 'bg-gray-800 text-gray-600 border border-gray-700' 
+                      : 'bg-gray-100 text-gray-400 border border-gray-200'
+                    : darkMode
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700'
+                      : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700'
+                  }
+                `}
+              >
+                {loading 
+                  ? (language === 'da' ? 'Genererer...' : 'Generating...')
+                  : (language === 'da' ? 'Generer Svar' : 'Generate Answer')
+                }
+              </button>
+            )}
+            
+            <ErrorMessage error={error} />
+          </div>
+
+          {/* iMessage-style Chat Interface - Only shows after first click */}
+          <ChatInterface 
+            userMessage={partnerMessage}
+            onGenerateResponse={handleGenerateResponse}
+            darkMode={darkMode}
+            hasStartedChat={hasStartedChat}
+            shouldGenerate={shouldGenerate}
+            onGenerationComplete={handleGenerationComplete}
+          />
+
+          {/* History List */}
+          <HistoryList 
+            darkMode={darkMode}
+            history={history}
+          />
+
+          {/* Footer section */}
+          <div className={`text-center mt-16 text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+            <p>Dating Assistant © 2025 | Skabt af Valdemar Stamm</p>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }

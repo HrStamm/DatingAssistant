@@ -59,7 +59,6 @@ This project was my sandbox for exploring:
 - **AI Integration** – Prompting GPT, balancing ease and complexity  
 - **Coding with AI Agents** – Using Copilot as a pair programming assistant  
 - **User Experience Design** – Focusing on usability and smooth interactions  
-- **The Art of "Good Enough"** – Shipping a working project instead of chasing perfection  
 
 ---
 

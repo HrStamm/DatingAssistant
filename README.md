@@ -1,4 +1,4 @@
-# DatingAssistant 💕  
+# DatingAssistant 
 
 This repository contains the code for **DatingAssistant**, a summer side project experimenting with AI-powered web applications, frontend development in Next.js, and coding with AI agents.
 
